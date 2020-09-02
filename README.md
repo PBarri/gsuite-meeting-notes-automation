@@ -11,9 +11,9 @@ This script is heavily based on https://github.com/daubejb/meeting-notes-for-goo
 
 ## Installation
 
-1.- Create a new Google App Script from Drive
-2.- Copy the contents of the meeting_minutes.gs file in the editor.
-3.- Save the script
-4.- Run it to test the script
+1. Create a new Google App Script from Drive
+2. Copy the contents of the meeting_minutes.gs file in the editor.
+3. Save the script
+4. Run it to test the script
 
 To schedule it, follow the instructions in https://developers.google.com/apps-script/guides/triggers/installable#managing_triggers_manually 

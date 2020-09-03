@@ -201,9 +201,12 @@ function createMeetingMinutesDocument(meeting, params) {
   titleParagraph.setHeading(DocumentApp.ParagraphHeading.TITLE);
   titleParagraph.setAttributes(params.styles.title);
   
-  var descriptionParagraph = body.appendParagraph('Description:\n' + meeting.description);
+  var descriptionParagraph = body.appendParagraph('Description:');
   descriptionParagraph.setHeading(DocumentApp.ParagraphHeading.NORMAL);
   descriptionParagraph.setAttributes(params.styles.label);
+  
+  var descriptionText = body.appendParagraph(meeting.description);
+  descriptionText.setAttributes(params.styles.text);
   
   var formattedStartDate = Utilities.formatDate(meeting.eventStart, params.timezone, params.readDateTimeFormat);
   var startDateParagraph = body.appendParagraph('Start: ' + formattedStartDate);

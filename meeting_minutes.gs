@@ -1,101 +1,119 @@
 // Based on https://github.com/daubejb/meeting-notes-for-google-calendar/blob/master/meeting_notes.gs
-function createMeetingNotesNextTimePeriod() {
-  //<-------------------------------------VARIABLES------------------------------------------>  
+function defineOptions() {
+  
+  var options = {};
   
   // define a custom style for all data labels
   var labelStyle ={};
   labelStyle[DocumentApp.Attribute.BOLD] = true;
   labelStyle[DocumentApp.Attribute.FONT_SIZE] = 12;
   labelStyle[DocumentApp.Attribute.FONT_FAMILY] = 'Nunito';
+  options.labelStyle = labelStyle;
   
   var titleStyle = {};
   titleStyle[DocumentApp.Attribute.BOLD] = true;
   titleStyle[DocumentApp.Attribute.FONT_SIZE] = 16;
   titleStyle[DocumentApp.Attribute.FONT_FAMILY] = 'Nunito';
+  options.titleStyle = titleStyle;
   
   var textStyle = {};
   textStyle[DocumentApp.Attribute.BOLD] = false;
   textStyle[DocumentApp.Attribute.FONT_SIZE] = 10;
   textStyle[DocumentApp.Attribute.FONT_FAMILY] = 'Nunito';
-  
-  // get today's date
-  var today = new Date();
+  options.textStyle = textStyle;
   
   // timezone, by default the one defined in the default calendar
-  var timezone = CalendarApp.getDefaultCalendar().getTimeZone();
+  options.timezone = CalendarApp.getDefaultCalendar().getTimeZone();
   
   // date formats
   var directoryStructureDateFormat = "yyyy-MM-dd";
   var readDateFormat = "dd-MM-yyyy";
-  var readDateTimeFormat = "dd-MM-yyyy HH:mm";
+  options.readDateTimeFormat = "dd-MM-yyyy HH:mm";
   
   // create a formatted version of today's date
-  var formattedToday = Utilities.formatDate(today, timezone,directoryStructureDateFormat);
-  var formattedTodayHeader = Utilities.formatDate(today, timezone, readDateFormat);
+  var today = new Date();
+  options.formattedToday = Utilities.formatDate(today, options.timezone, directoryStructureDateFormat);
+  options.formattedTodayHeader = Utilities.formatDate(today, options.timezone, readDateFormat);
   
   // number of hours from now to check for meetings
-  var hours = 2;
+  options.hours = 2;
   
   // create variable for now
-  var now = new Date();
+  options.now = new Date();
   
   // create variable for number of hours from now in milliseconds
-  var periodFromNow = new Date(now.getTime() + (hours * 60 * 60 * 1000));
+  options.periodFromNow = new Date(options.now.getTime() + (options.hours * 60 * 60 * 1000));
+
+  // name of the root folder
+  options.rootFolder = 'Meeting Notes';
+  
+  // name of the minutes calendar
+  options.calendarName = 'Meeting minutes';
+  
+  return options;
+
+}
+
+function createMeetingNotesNextTimePeriod() {
+  //<-------------------------------------VARIABLES------------------------------------------>
+  var opts = defineOptions();
   
   // creates the meeting folder in GDrive if it doesn't exists and return the reference to it
-  var meetingNotesFolder = createMeetingsFolderIfDoesNotExists('Meeting Notes');
+  var meetingNotesFolder = createMeetingsFolderIfDoesNotExists(opts.rootFolder);
   
   //<-------------------CREATE A MEETING NOTES CALENDAR IF MISSING-------------------------->
   
-  var minutesCalendarId = createMinutesCalendarIfDoesNotExists('Meeting minutes');
+  var minutesCalendarId = createMinutesCalendarIfDoesNotExists(opts.calendarName);
   
   
   //<--------------------GET EVENTS/ATTRIBUTES FOR TIME PERIOD FROM NOW--------------------->
   
   
   // retrieve all calendar events for time period
-  var events = CalendarApp.getDefaultCalendar().getEvents(now, periodFromNow);  
-  Logger.log('Number of events in the next ' + hours + ' hours: ' + events.length);
+  var events = CalendarApp.getDefaultCalendar().getEvents(opts.now, opts.periodFromNow);  
+  Logger.log('Number of events in the next ' + opts.hours + ' hours: ' + events.length);
   
   // create a folder for today's notes only if folder does not exist and if events are found
-  var todaysNotesFolderId = getOrCreateDayMinutesFolder(meetingNotesFolder, formattedToday, events);  
-  
-  // loop through each event an get meeting attributes, 
-  for (var i=0;i<events.length;i++) {
-    var meeting = {};
-    meeting.title = events[i].getTitle();
-    meeting.description = events[i].getDescription();
-    meeting.eventStart = events[i].getStartTime();
-    meeting.eventEnd = events[i].getEndTime();
-    meeting.location = events[i].getLocation();
-    meeting.owner = events[i].getCreators();
-    meeting.guestList = events[i].getGuestList();
-
-    var params = {};
-    params.formattedToday = formattedToday;
-    params.formattedTodayHeader = formattedTodayHeader;
-    params.readDateTimeFormat = readDateTimeFormat;
-    params.timezone = timezone;
-    params.folderId = todaysNotesFolderId;
-    params.styles = {};
-    params.styles.title = titleStyle;
-    params.styles.label = labelStyle;
-    params.styles.text = textStyle;
+  if (events.length > 0) {
+    var todaysNotesFolderId = getOrCreateDayMinutesFolder(meetingNotesFolder, opts.formattedToday);
     
-    // create a google doc with the meeting name as the title
-    var fileExists = DriveApp.getFoldersByName(formattedToday).next().getFilesByName(meeting.title).hasNext();
-    
-    // check to see if file already exists, if does skip if loop
-    if ((!fileExists) && (meeting.guestList.length >= 1)) {
-      Logger.log('Minutes file for meeting ' + meeting.title + ' does not exist. Creating ...');
-      var document = createMeetingMinutesDocument(meeting, params);
+    // loop through each event an get meeting attributes, 
+    for (var i=0;i<events.length;i++) {
+      var meeting = {};
+      meeting.title = events[i].getTitle();
+      meeting.description = events[i].getDescription();
+      meeting.eventStart = events[i].getStartTime();
+      meeting.eventEnd = events[i].getEndTime();
+      meeting.location = events[i].getLocation();
+      meeting.owner = events[i].getCreators();
+      meeting.guestList = events[i].getGuestList();
       
-      Logger.log('Creating calendar event in the meeting minutes calendar...');
-      createCalendarEventWithAttachment(minutesCalendarId, meeting, document);
-    } else {
-      Logger.log('Minutes file for meeting ' + meeting.title + ' already exists. Skipping it.');
+      var params = {};
+      params.formattedToday = opts.formattedToday;
+      params.formattedTodayHeader = opts.formattedTodayHeader;
+      params.readDateTimeFormat = opts.readDateTimeFormat;
+      params.timezone = opts.timezone;
+      params.folderId = todaysNotesFolderId;
+      params.styles = {};
+      params.styles.title = opts.titleStyle;
+      params.styles.label = opts.labelStyle;
+      params.styles.text = opts.textStyle;
+      
+      // create a google doc with the meeting name as the title
+      var fileExists = DriveApp.getFoldersByName(opts.formattedToday).next().getFilesByName(meeting.title).hasNext();
+      
+      // check to see if file already exists, if does skip if loop
+      if ((!fileExists) && (meeting.guestList.length >= 1)) {
+        Logger.log('Minutes file for meeting ' + meeting.title + ' does not exist. Creating ...');
+        var document = createMeetingMinutesDocument(meeting, params);
+        
+        Logger.log('Creating calendar event in the meeting minutes calendar...');
+        createCalendarEventWithAttachment(minutesCalendarId, meeting, document);
+      } else {
+        Logger.log('Minutes file for meeting ' + meeting.title + ' already exists. Skipping it.');
+      }
     }
-  }  // for loop for each event 
+  }
 }
 
 /*
@@ -147,20 +165,17 @@ function createMinutesCalendarIfDoesNotExists(calendarName) {
   return minutesCalendar.getId();
 }
 
-function getOrCreateDayMinutesFolder(rootFolder, date, events) {
-  if (events.length > 0) {
-    var dateFolderExists = rootFolder.getFoldersByName(date).hasNext();
-    
-    // create the folder if it does not exist
-    if (!dateFolderExists) {
-      Logger.log(date + ' folder does not exist. Creating it...');
-      rootFolder.createFolder(date);
-      Logger.log(date + 'folder created');
-    } else {
-      Logger.log(date + ' folder already exists.');
-    }
-  }
-            
+function getOrCreateDayMinutesFolder(rootFolder, date) {
+  var dateFolderExists = rootFolder.getFoldersByName(date).hasNext();
+  
+  // create the folder if it does not exist
+  if (!dateFolderExists) {
+    Logger.log(date + ' folder does not exist. Creating it...');
+    rootFolder.createFolder(date);
+    Logger.log(date + 'folder created');
+  } else {
+    Logger.log(date + ' folder already exists.');
+  }            
   return rootFolder.getFoldersByName(date).next().getId();
 }
 
